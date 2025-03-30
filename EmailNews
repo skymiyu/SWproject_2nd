@@ -1,0 +1,160 @@
+var OPENAI_API_KEY = "";
+
+function analyzeNewsAndSendEmail() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = ss.getActiveSheet();
+  var lastRow = sheet.getLastRow();
+
+  // 헤더(1행) 이후의 데이터가 있다면 초기화
+  if (lastRow > 1) {
+    sheet.getRange(2, 1, lastRow - 1, sheet.getLastColumn()).clearContent();
+  }
+
+  var keyword = "스포츠"; // 검색할 키워드
+  var emailAddress = "blue57501@gmail.com"; // 받을 이메일
+
+  // 1. 뉴스 스크랩
+  var newsItems = scrapeGoogleNews(keyword);
+
+  // 2. GPT로 분석 및 요약
+  var analysisResult = analyzeNewsItems(newsItems);
+
+  // 3. 파싱
+  var articles = parseGPTReply(analysisResult);
+
+  // 4. 시트에 입력
+  writeArticlesToSpreadsheet(articles);
+
+  // 5. 이메일 전송
+  sendEmailWithArticles(emailAddress);
+}
+
+function scrapeGoogleNews(keyword) {
+  var url = "https://news.google.com/rss/search?q=" + encodeURIComponent(keyword) + "&hl=ko";
+  var xml = UrlFetchApp.fetch(url).getContentText();
+  var document = XmlService.parse(xml);
+  var root = document.getRootElement();
+  var channel = root.getChild('channel');
+  var items = channel.getChildren('item');
+
+  var newsItems = [];
+  for (var i = 0; i < Math.min(items.length, 20); i++) {
+    var item = items[i];
+    var title = item.getChild('title').getText();
+    var link = item.getChild('link').getText();
+    newsItems.push({ title: title, link: link });
+  }
+  return newsItems;
+}
+
+function analyzeNewsItems(newsItems) {
+  var apiUrl = "https://api.openai.com/v1/chat/completions";
+
+  var prompt = `다음 뉴스 기사 목록에서 AI 자동화 사업을 운영하는 대표인 내가 관심을 가질 만한 6개의 기사를 선택한 후, 각각의 기사를 더 흥미롭게 보일 수 있는 제목으로 바꾸고 본문을 요약해줘. 
+(필수) 나는 최신 트렌드를 누구보다 빠르게 파악해야 하고, 실용적이고 구체적인 지식을 원하니, AI 산업, 비즈니스 전략, 기술 혁신, 글로벌 시장 동향에 중점을 두고 요약해줘. 
+원문 링크는 하이퍼링크로 쓸 수 있게 괄호 없이 링크만 줘.\n\n`;
+
+  for (var i = 0; i < newsItems.length; i++) {
+    prompt += (i + 1) + ". " + newsItems[i].title + "\n";
+    prompt += newsItems[i].link + "\n\n";
+  }
+
+  var requestData = {
+    model: "gpt-4o-mini",
+    messages: [{ role: "user", content: prompt }],
+    max_tokens: 4000,
+    n: 1,
+    temperature: 0.7
+  };
+
+  var options = {
+    method: 'post',
+    contentType: 'application/json',
+    headers: {
+      'Authorization': 'Bearer ' + OPENAI_API_KEY
+    },
+    payload: JSON.stringify(requestData)
+  };
+
+  var response = UrlFetchApp.fetch(apiUrl, options);
+  var responseData = JSON.parse(response.getContentText());
+  var reply = responseData.choices[0].message.content.trim();
+
+  Logger.log("GPT 응답:\n" + reply); // 디버깅용 로그
+
+  return reply;
+}
+
+function parseGPTReply(reply) {
+  var articles = [];
+  var articleBlocks = reply.split(/\n\s*\n/); // 공백 줄 기준 분할
+
+  for (var i = 0; i < articleBlocks.length; i++) {
+    var block = articleBlocks[i].trim();
+    if (!block) continue;
+
+    var titleMatch = block.match(/제목:\s*(.+)/i);
+    var summaryMatch = block.match(/요약:\s*([\s\S]+?)\s*링크:/i);
+    var linkMatch = block.match(/링크:\s*(https?:\/\/[^\s]+)/i);
+
+    if (titleMatch && summaryMatch && linkMatch) {
+      var article = {
+        title: titleMatch[1].trim(),
+        summary: summaryMatch[1].trim().replace(/\n/g, ' '),
+        link: linkMatch[1].trim()
+      };
+      articles.push(article);
+    }
+  }
+
+  return articles;
+}
+
+function writeArticlesToSpreadsheet(articles) {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = ss.getActiveSheet();
+  var startRow = 2;
+
+  for (var i = 0; i < articles.length; i++) {
+    var article = articles[i];
+    var row = startRow + i;
+    sheet.getRange(row, 1).setValue(article.title);
+    sheet.getRange(row, 2).setValue(article.summary);
+    sheet.getRange(row, 3).setFormula('=HYPERLINK("' + article.link + '", "' + article.link + '")');
+  }
+}
+
+function sendEmailWithArticles(emailAddress) {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = ss.getActiveSheet();
+  var startRow = 2;
+  var numArticles = 6;
+
+  var dataRange = sheet.getRange(startRow, 1, numArticles, 3);
+  var data = dataRange.getValues();
+  var formulas = dataRange.getFormulas();
+
+  var today = new Date();
+  var dateString = Utilities.formatDate(today, "GMT+9", "M월 d일");
+
+  var emailSubject = dateString + " 대표님, 오늘의 뉴스입니다.";
+  var emailBody = "<h2>" + emailSubject + "</h2>";
+
+  for (var i = 0; i < data.length; i++) {
+    var title = data[i][0];
+    var summary = data[i][1];
+    var linkFormula = formulas[i][2];
+    summary = summary.replace(/[\n\r]+/g, ' ');
+    var linkMatch = linkFormula.match(/HYPERLINK\("([^"]+)"/);
+    var link = linkMatch ? linkMatch[1] : "";
+
+    emailBody += "<p><strong>" + (i + 1) + ". <a href=\"" + link + "\" target=\"_blank\">" + title + "</a></strong><br>";
+    emailBody += "요약: " + summary + "<br></p>";
+  }
+
+  MailApp.sendEmail({
+    to: emailAddress,
+    subject: emailSubject,
+    htmlBody: emailBody
+  });
+}
