@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title>뉴스 요약 서비스</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- 사이드바 -->
+  <div class="sidebar">
+    <div>
+      <h2>🧾 요약 기록</h2>
+      <div class="history-list" id="history-list">
+        <div class="history-item">경제 뉴스 요약</div>
+        <div class="history-item">IT 기사 요약</div>
+      </div>
+    </div>
+
+    <div class="auth-buttons">
+      <button onclick="openAuthModal()">로그인 / 회원가입</button>
+    </div>
+  </div>
+
+  <!-- 본문 입력 영역 -->
+  <div id="form-box" class="main">
+    <h2>📰 뉴스 요약하기</h2>
+
+    <label for="news-url">URL 입력</label>
+    <input type="text" id="news-url" placeholder="예: https://news.naver.com/..." />
+
+    <label for="news-text">직접 뉴스 붙여넣기</label>
+    <textarea id="news-text" rows="8" placeholder="뉴스 내용을 여기에 붙여넣으세요."></textarea>
+
+    <button class="submit" onclick="handleSubmit()">요약 요청하기</button>
+  </div>
+
+  <!-- 결과 출력 영역 -->
+  <div id="article-box" class="main" style="display: none;">
+    <h2>📰 요약 결과</h2>
+
+    <div class="summary-box">
+      <h3>기사 원문</h3>
+      <p id="article-text">기사 본문이 여기에 표시됩니다.</p>
+    </div>
+  </div>
+  <div id="result-box" class="main" style="display: none;">
+    <div class="summary-box">
+      <h3>요약 결과</h3>
+      <p id="summary-text">요약 내용이 여기에 표시됩니다.</p>
+    </div>
+
+    <button class="submit" onclick="resetForm()">다시 요약하기</button>
+  </div>
+
+  <!-- 모달 -->
+  <div id="auth-modal">
+    <div class="modal-backdrop" onclick="closeAuthModal()"></div>
+    <div class="modal-content">
+      <h3 id="modal-title">로그인</h3>
+      <input type="text" placeholder="이메일" />
+      <input type="password" placeholder="비밀번호" />
+      <button onclick="alert('로그인 시도!')">로그인</button>
+      <p style="text-align:center; margin-top: 10px;">
+        계정이 없으신가요?
+        <a href="#" onclick="switchToSignup(event)">회원가입</a>
+      </p>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
