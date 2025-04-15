@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title>뉴스 요약 서비스</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- 사이드바 -->
+  <div class="sidebar">
+    <div id = "hide-togle">
+      <button id="side-toggle" class = "sidebar-toggle-btn" onclick= "toggleSidebar()">
+        <!-- 사이드바 토글 아이콘 -->
+        <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="2" y="2" width="20" height="20" rx="5" ry="5" fill="none" />
+          <line x1="6" y1="8" x2="10" y2="8" />
+          <line x1="6" y1="12" x2="10" y2="12" />
+          <line x1="12" y1="4" x2="12" y2="20" />
+        </svg>
+      </button>
+    </div>
+    <div id="scroll-container">
+      <div>
+        <h2>🧾 메뉴</h2>
+        <div class="history-list" id="history-list">
+          <div class="history-item" onclick="handleQuickSummary()">빠른 뉴스 요약</div>
+          <div class="history-item" onclick="handleMultipleSummary()">카테고리별 뉴스 보기</div>
+          <div class="history-item" onclick="showReservedSummaryBox()">예약요약 보기</div>
+          <div class="history-item" onclick="openContactPage()">제작자 연락처</div>
+        </div>
+        <h2>저장된 요약</h2>
+        <div class="saved-summary-list" id="saved-summary-list"></div>
+      </div>
+    </div>
+    <div class="auth-buttons">
+      <button id="auth-btn" onclick="openAuthModal()">로그인 / 회원가입</button>
+      <button class="submit dark-mode-toggle" onclick="toggleDarkMode()">다크 모드 전환</button>
+    </div>
+  </div>
+
+  <!-- 빠른 뉴스 요약 폼 -->
+  <div class="main-container">
+    <div id="form-box" class="main">
+      <h2>📰 빠른 뉴스 요약하기</h2>
+      <label for="news-url">URL 입력</label>
+      <input type="text" id="news-url" placeholder="예: https://news.naver.com/..." />
+      <label for="news-text">직접 뉴스 붙여넣기</label>
+      <textarea id="news-text" rows="8" placeholder="뉴스 내용을 여기에 붙여넣으세요."></textarea>
+      <button class="submit" onclick="handleSubmit()">요약 요청하기</button>
+    </div>
+
+    <!-- 카테고리별 뉴스 요약 영역 -->
+    <div id="multi-form-box" class="main" style="display: none;"></div>
+
+    <!-- 단일 뉴스 요약 결과 -->
+    <div id="article-box" class="main" style="display: none;">
+      <div class="summary-box">
+        <h3>기사 원문</h3>
+        <p id="article-text">기사 본문이 여기에 표시됩니다.</p>
+      </div>
+    </div>
+    <div id="result-box" class="main" style="display: none;">
+      <div class="summary-box">
+        <h3>요약 결과</h3>
+        <p id="summary-text">요약 내용이 여기에 표시됩니다.</p>
+      </div>
+      <div class="button-group">
+        <button class="submit" onclick="resetForm()">다시 요약하기</button>
+        <button class="submit" onclick="copySummary()">복사하기</button>
+        <button class="submit" onclick="printSummary()">인쇄하기</button>
+        <button class="submit" onclick="saveCurrentSummary()">요약 저장</button>
+      </div>
+    </div>
+
+    <!-- 예약 요약 결과 전용 탭 -->
+    <div id="reserved-summary-box" class="main" style="display: none;">
+      <h2>📅 예약 요약 결과</h2>
+      <div id="reserved-news" class="news-list"></div>
+    </div>
+
+    <!-- 제작자 연락처 화면 -->
+    <div id="contact-box" class="main" style="display: none;">
+      <h2>제작자 연락처</h2>
+      <div class="summary-box">
+        <p>이메일: kitsuneYeu@gmail.com</p>
+        <p>전화: 010-1234-5678</p>
+        <button class="submit" onclick="backToDefault()">돌아가기</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 로그인/회원가입/계정 복구 모달 -->
+  <div id="auth-modal" style="display: none;">
+    <div class="modal-backdrop" onclick="closeAuthModal()"></div>
+    <div class="modal-content">
+      <!-- 로그인 단계 (최초 표시) -->
+      <div id="login-step">
+        <h3>로그인</h3>
+        <input type="text" id="login-email" placeholder="이메일" />
+        <input type="password" id="login-password" placeholder="비밀번호" />
+        <button onclick="handleLogin()">로그인</button>
+        <p style="text-align:center; margin-top: 10px;">
+          계정이 없으신가요? <a href="#" onclick="switchToSignup(event)">회원가입</a>
+        </p>
+        <p style="text-align:center; margin-top: 10px;">
+          계정을 잃어버리셨나요? <a href="#" onclick="switchToRecover(event)">계정찾기</a>
+        </p>
+      </div>
+      <!-- 회원가입 1단계 -->
+          <!-- 로그인 상태 표시 영역 -->
+      <div id="user-status" style="position: absolute; top: 10px; right: 20px; font-weight: bold;"></div>
+
+      <!-- 회원가입 1단계 -->
+      <div id="signup-step1" style="display: none;">
+        <h3>회원가입</h3>
+        <input type="text" id="signup-nickname" placeholder="닉네임" />
+        <input type="text" id="signup-email" placeholder="이메일" />
+        <input type="password" id="signup-password" placeholder="비밀번호" />
+        <input type="password" id="signup-confirm" placeholder="비밀번호 확인" />
+        <button onclick="handleSignup()">인증번호 받기</button>
+        <p style="text-align:center; margin-top: 10px;">
+          이미 계정이 있으신가요? <a href="#" onclick="switchToLogin(event)">로그인</a>
+        </p>
+      </div>
+
+      <!-- 회원가입 2단계: 인증 코드 입력 -->
+      <div id="signup-step2" style="display: none;">
+        <h3>인증 코드 입력</h3>
+        <input type="text" id="auth-code-input" placeholder="인증 코드를 입력하세요" />
+        <button onclick="handleAuthCode()">회원가입 완료</button>
+        <p style="text-align:center; margin-top: 10px;">
+          가입하신 이메일로 전송된 인증 코드를 입력해주세요.
+        </p>
+      </div>
+
+      <!-- 계정 복구 단계 -->
+      <div id="recover-step" style="display: none;">
+        <h3>계정 복구</h3>
+        <input type="text" id="recover-email" placeholder="가입하신 이메일을 입력하세요" />
+        <button onclick="handleRecover()">복구 이메일 전송</button>
+        <p style="text-align:center; margin-top: 10px;">
+          다시 로그인 하시겠습니까? <a href="#" onclick="switchToLogin(event)">로그인</a>
+        </p>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- 회원 탈퇴 전용 모달 -->
+  <div id="delete-account-modal" class="delete-modal-backdrop" style="display: none;">
+    <div class="delete-modal-box">
+      <h2>정말로 탈퇴하시겠습니까?</h2>
+      <p>비밀번호를 입력하셔야 탈퇴가 완료됩니다.</p>
+      <input type="password" id="delete-password-input" placeholder="비밀번호 입력" />
+      <div class="delete-modal-actions">
+        <button class="delete-confirm-btn" onclick="confirmAccountDelete()">탈퇴하기</button>
+        <button class="delete-cancel-btn" onclick="closeDeleteAccountModal()">취소</button>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- 마이페이지 모달 -->
+  <div class="mypage-modal-backdrop" style="display: none;">
+    <div class="mypage-modal">
+       <!-- ✅ 상단 헤더 바 -->
+      <div class="mypage-header-bar">
+        <span>설정</span>
+        <button class="mypage-header-close" onclick="closeMyPageModal()">✕</button>
+      </div>
+      <div class="mypage-modal-content"> 
+        <div class="mypage-sidebar">
+          <ul>
+            <li class="active" onclick="openMypageTab('general', this)">일반</li>
+            <li onclick="openMypageTab('summary', this)">요약</li>
+            <li onclick="openMypageTab('account', this)">계정</li>
+          </ul>
+        </div>
+        <div class="mypage-panel">
+
+          <!-- 일반 탭 -->
+          <div id="mypage-tab-general">
+            <div class="setting-item">
+              <span>이메일로 요약 결과 받기</span>
+              <label class="switch">
+                <input type="checkbox" id="mypage-email-toggle" onchange="handleEmailToggle()" />
+                <span class="slider round"></span>
+              </label>
+            </div>
+            <button class="logout-btn" onclick="logout()">로그아웃</button>
+          </div>
+          
+          <!-- 요약 탭 -->
+          <div id="mypage-tab-summary" style="display: none;">
+            <!-- 상태 요약 텍스트 -->
+            <p id="mypage-status" style="color: #666; font-size: 14px; margin-bottom: 12px;">
+              불러오는 중...
+            </p>
+
+            <label>알림 시간</label><br />
+            <input type="time" id="mypage-time" /><br /><br />
+
+            <label>키워드 (쉼표로 구분)</label><br />
+            <input type="text" id="mypage-keywords" placeholder="예: 게임,AI,삼성" /><br /><br />
+
+            <label>요약 스타일</label><br />
+            <select id="mypage-style-select">
+              <option value="default">🤖 비서처럼</option>
+              <option value="friend">🧑 친구처럼</option>
+              <option value="boss">👩‍💼 상사처럼</option>
+              <option value="king">👑 왕처럼</option>
+            </select><br /><br />
+
+            <button class="mypage-button blue" onclick="saveUserSettings()">저장</button>
+          </div>
+          
+          <!-- 계정 탭 -->
+          <div id="mypage-tab-account" style="display: none;">
+            <button onclick="openDeleteAccountModal()" class="delete-btn">회원 탈퇴</button>
+          </div>
+
+
+
+  
+
+  
+
+  <script src="script.js"></script>
+</body>
+</html>
